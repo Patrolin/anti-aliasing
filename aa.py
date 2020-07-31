@@ -37,15 +37,13 @@ def kernelOffsets(n=3):
 	return [(x - offset, y - offset) for x in range(n) for y in range(n)]
 
 def kernelScale(kernel):
-	normal_scale = pos_scale = neg_scale = 0
+	normal_scale = pos_scale = 0
 	for row in kernel:
 		for k in row:
 			normal_scale += k
 			if k > 0:
 				pos_scale += k
-			else:
-				neg_scale -= k
-	return normal_scale if normal_scale != 0 else max(pos_scale, neg_scale) / 4
+	return normal_scale if normal_scale != 0 else pos_scale / 4
 
 def applyKernel(pixels, kernel, scale=None, duplicate=False):
 	if scale == None:
