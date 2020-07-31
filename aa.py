@@ -30,18 +30,11 @@ def signedimg(pixels):
 			img.putpixel((x, y), (round(pixels[y][x]), 0, 0) if pixels[y][x] > 0 else (0, round(-pixels[y][x]), 0))
 	return img
 
-def duplicate(pixels):
-	w, h = len(pixels[0]), len(pixels)
-	res = [[d for d in row] for row in pixels]
-	res = [[row[0]] + row + [row[-1]] for row in res]
-	res.insert(0, res[0])
-	res.insert(len(res), res[-1])
-	return res
-
 
 
 def kernelOffsets(n=3):
-	return [(x - n//2, y - n//2) for x in range(n) for y in range(n)]
+	offset = n//2
+	return [(x - offset, y - offset) for x in range(n) for y in range(n)]
 
 def kernelScale(kernel):
 	normal_scale = pos_scale = neg_scale = 0
@@ -54,19 +47,24 @@ def kernelScale(kernel):
 				neg_scale -= k
 	return normal_scale if normal_scale != 0 else max(pos_scale, neg_scale)
 
-def applyKernel(pixels, kernel, scale=None):
+def applyKernel(pixels, kernel, scale=None, duplicate=False):
 	if scale == None:
 		scale = kernelScale(kernel)
 	n = len(kernel[0])
-	offset = n // 2
+	offset = n//2
 	w, h = len(pixels[0]), len(pixels)
-	res = [[0 for x in range(w - 2*offset)] for y in range(h - 2*offset)]
-	for y in range(h - 2*offset):
-		for x in range(w - 2*offset):
-			d = 0
+	res = [[0 for x in range(w)] for y in range(h)]
+	for y in range(h):
+		for x in range(w):
+			v = c = 0
 			for (dx, dy) in kernelOffsets(n):
-				d += kernel[dy][dx] * pixels[y + offset + dy][x + offset + dx]
-			res[y][x] = d / scale
+				if 0 <= (x + dx) < w and 0 <= (y + dy) < h:
+					v += kernel[dy + offset][dx + offset] * pixels[y + dy][x + dx]
+					c += 1
+				elif duplicate:
+					v += kernel[dy + offset][dx + offset] * pixels[y][x]
+					c += 1
+			res[y][x] = v / scale * (c / n**2) ** 2.2
 	return res
 
 LEFT_SOBEL = [[1, 0, -1],
@@ -104,10 +102,10 @@ def sign(x):
 	return copysign(1, x)
 
 def angleFromCoords(x, y):
-	c = (x**2 + y**2)**.5
+	c = (x**2 + y**2) ** .5
 	x = min(max(-1, x / c), 1)
 	y = min(max(-1, y / c), 1)
-	return sign(asin(y)) * (acos(x)-pi) + pi
+	return sign(asin(y)) * (acos(x) - pi) + pi
 
 
 def total(pixels):
@@ -143,11 +141,12 @@ original = Image.open(argv[1])
 
 luminance = original.convert('L')
 luminance_pixels = getpixels(luminance)
-luminance_pixels_duplicated = duplicate(luminance_pixels)
 #getimg(luminance_pixels).save(f'{name}_luminance.png') # destroy metadata
 
-leftSobel_pixels = applyKernel(luminance_pixels_duplicated, LEFT_SOBEL, 1)
-topSobel_pixels = applyKernel(luminance_pixels_duplicated, TOP_SOBEL, 1)
+leftSobel_pixels = applyKernel(luminance_pixels, LEFT_SOBEL, scale=1, duplicate=False)
+topSobel_pixels = applyKernel(luminance_pixels, TOP_SOBEL, scale=1, duplicate=False)
+#signedimg(leftSobel_pixels).save(f'{name}_leftSobel.png')
+#signedimg(topSobel_pixels).save(f'{name}_topSobel.png')
 
 sobel_pixels = sobelMerge(leftSobel_pixels, topSobel_pixels)
 sobel = getimg(sobel_pixels)
@@ -155,11 +154,12 @@ sobel.save(f'{name}_sobel.png')
 
 
 blurred = original.filter(ImageFilter.GaussianBlur(radius=2))
-blurred_pixels_duplicated = duplicate(getpixels(blurred.convert('L')))
+blurred_luminance_pixels = getpixels(blurred.convert('L'))
 #blurred.save(f'{name}_blurred.png')
+#getimg(blurred_luminance_pixels).save(f'{name}_luminanceBlurred.png')
 
-blurred_leftSobel_pixels = applyKernel(blurred_pixels_duplicated, LEFT_SOBEL, 1)
-blurred_topSobel_pixels = applyKernel(blurred_pixels_duplicated, TOP_SOBEL, 1)
+blurred_leftSobel_pixels = applyKernel(blurred_luminance_pixels, LEFT_SOBEL, scale=1, duplicate=False)
+blurred_topSobel_pixels = applyKernel(blurred_luminance_pixels, TOP_SOBEL, scale=1, duplicate=False)
 #signedimg(blurred_leftSobel_pixels).save(f'{name}_leftSobelBlurred.png')
 #signedimg(blurred_topSobel_pixels).save(f'{name}_topSobelBlurred.png')
 
