@@ -43,7 +43,7 @@ def kernelScale(kernel):
 			normal_scale += k
 			if k > 0:
 				pos_scale += k
-	return normal_scale if normal_scale != 0 else pos_scale / 4
+	return 1 / normal_scale if normal_scale != 0 else SOBEL_MUL / pos_scale
 
 def applyKernel(pixels, kernel, scale=None, duplicate=False):
 	if scale == None:
@@ -62,7 +62,7 @@ def applyKernel(pixels, kernel, scale=None, duplicate=False):
 				elif duplicate:
 					v += kernel[dy + offset][dx + offset] * pixels[y][x]
 					c += 1
-			res[y][x] = v / scale * (c / n**2) ** 2.2
+			res[y][x] = v * scale * (c / n**2) ** SOBEL_GAMMA
 	return res
 
 LEFT_SOBEL = [[1, 0, -1],
@@ -86,7 +86,7 @@ TOP_SCHARR = [[ 47,  162,  47],
 
 def sobelMerge(leftSobel_pixels, topSobel_pixels):
 	w, h = len(leftSobel_pixels[0]), len(leftSobel_pixels)
-	return [[((leftSobel_pixels[y][x] ** 2 + topSobel_pixels[y][x] ** 2) / 2) ** .5 for x in range(w)] for y in range(h)]
+	return [[(leftSobel_pixels[y][x] ** 2 + topSobel_pixels[y][x] ** 2) ** .5 for x in range(w)] for y in range(h)]
 
 def sobelDirection(leftSobel_pixels, topSobel_pixels, sobel_pixels):
 	def _sobelDirection(x, y):
@@ -117,7 +117,7 @@ def angleFromCoords(x, y):
 	return sign(asin(y)) * (acos(x) - pi) + pi
 
 
-def total(pixels):
+def totalLuminance(pixels):
 	res = 0
 	for row in pixels:
 		for d in row:
@@ -127,12 +127,12 @@ def total(pixels):
 def matchGamma(src, target):
 	w, h = len(target[0]), len(target)
 	target = [[min(target[y][x] / 255, 1) for x in range(w)] for y in range(h)]
-	src_total = round(total(src) / 255)
+	src_total = round(totalLuminance(src) / 255)
 	g = 5
 	step = g / 2
 	while True:
 		curr = [[target[y][x] ** g for x in range(w)] for y in range(h)]
-		curr_total = round(total(curr))
+		curr_total = round(totalLuminance(curr))
 		if curr_total < src_total:
 			g -= step
 		elif curr_total > src_total:
@@ -141,6 +141,14 @@ def matchGamma(src, target):
 			break
 		step /= 2
 	return [[curr[y][x] * 255 for x in range(w)] for y in range(h)]
+
+
+
+# random numbers
+SOBEL_MUL = e # 2.718281828459045
+SOBEL_GAMMA = sqrt(2*pi) # 2.5066282746310002
+SOBEL_BLUR_RADIUS = 2
+BLUR_RADIUS = 2
 
 
 
@@ -162,8 +170,8 @@ sobel = getimg(sobel_pixels)
 sobel.save(f'{name}_sobel.png')
 
 
-blurred = original.filter(ImageFilter.GaussianBlur(radius=2))
-blurred_luminance_pixels = getpixels(blurred.convert('L'))
+blurred = original.filter(ImageFilter.GaussianBlur(radius=BLUR_RADIUS))
+blurred_luminance_pixels = getpixels(original.filter(ImageFilter.GaussianBlur(radius=SOBEL_BLUR_RADIUS)).convert('L'))
 #blurred.save(f'{name}_blurred.png')
 #getimg(blurred_luminance_pixels).save(f'{name}_luminanceBlurred.png')
 
@@ -188,3 +196,5 @@ getimg(sobelDirection_pixels).save(f'{name}_sobelDirection.png')
 
 blurred_sobelDirection_pixels = sobelDirection(blurred_leftSobel_pixels, blurred_topSobel_pixels, sobel_pixels)
 getimg(blurred_sobelDirection_pixels).save(f'{name}_sobelDirectionBlurred.png')
+
+print(totalLuminance(sobel_pixels))
