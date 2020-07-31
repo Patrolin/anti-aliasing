@@ -45,7 +45,7 @@ def kernelScale(kernel):
 				pos_scale += k
 			else:
 				neg_scale -= k
-	return normal_scale if normal_scale != 0 else max(pos_scale, neg_scale)
+	return normal_scale if normal_scale != 0 else max(pos_scale, neg_scale) / 4
 
 def applyKernel(pixels, kernel, scale=None, duplicate=False):
 	if scale == None:
@@ -68,11 +68,22 @@ def applyKernel(pixels, kernel, scale=None, duplicate=False):
 	return res
 
 LEFT_SOBEL = [[1, 0, -1],
-				 [2, 0, -2],
-				 [1, 0, -1]]
+              [2, 0, -2],
+              [1, 0, -1]]
+LEFT_ROBERTS_CROSS = [[1,  0],
+                      [0, -1]]
+LEFT_SCHARR = [[ 47, 0,  -47],
+               [162, 0, -162],
+               [ 47, 0,  -47]]
+
 TOP_SOBEL = [[ 1,  2,  1],
-				[ 0,  0,  0],
-				[-1, -2, -1]]
+             [ 0,  0,  0],
+             [-1, -2, -1]]
+TOP_ROBERTS_CROSS = [[ 0, 1],
+                     [-1, 0]]
+TOP_SCHARR = [[ 47,  162,  47],
+              [  0,    0,   0],
+              [-47, -162, -47]]
 
 
 def sobelMerge(leftSobel_pixels, topSobel_pixels):
@@ -82,19 +93,19 @@ def sobelMerge(leftSobel_pixels, topSobel_pixels):
 def sobelDirection(leftSobel_pixels, topSobel_pixels, sobel_pixels):
 	def _sobelDirection(x, y):
 		'''
-			720: angleFromCoords(x, y) * 360/pi
-			360: angleFromCoords(x, y) * 180/pi
-			360x2 (normal): atan(x, y) * 360/pi
-			180x2: atan(x, y) * 180/pi
-			180x2-fixed: atan(x, abs(y)) * 180/pi
+			720:              angleFromCoords(x, y) * 360/pi
+			360 (normal):     angleFromCoords(x, y) * 180/pi
+			360x2 (standard): atan(x, y) * 360/pi
+			180x2:            atan(x, y) * 180/pi
+			180x2-fixed:      atan(x, abs(y)) * 180/pi
 		'''
 		#angle = angleFromCoords(leftSobel_pixels[y][x], topSobel_pixels[y][x] or 1e-9)
 		#angle = atan(leftSobel_pixels[y][x] / (topSobel_pixels[y][x] or 1e-9))
 		angle = atan(leftSobel_pixels[y][x] / abs(topSobel_pixels[y][x] or 1e-9))
-		#hue = (angle * 360/pi) % 360
-		hue = (angle * 180/pi) % 360
+		#hue = angle * 360/pi
+		hue = angle * 180/pi
 		value = sobel_pixels[y][x] / 255
-		return ImageColor.getrgb(f'hsv({hue},100%,{value:%})')
+		return ImageColor.getrgb(f'hsv({hue % 360},100%,{value:%})')
 	w, h = len(leftSobel_pixels[0]), len(leftSobel_pixels)
 	return [[_sobelDirection(x, y) for x in range(w)] for y in range(h)]
 
@@ -143,8 +154,8 @@ luminance = original.convert('L')
 luminance_pixels = getpixels(luminance)
 #getimg(luminance_pixels).save(f'{name}_luminance.png') # destroy metadata
 
-leftSobel_pixels = applyKernel(luminance_pixels, LEFT_SOBEL, scale=1, duplicate=False)
-topSobel_pixels = applyKernel(luminance_pixels, TOP_SOBEL, scale=1, duplicate=False)
+leftSobel_pixels = applyKernel(luminance_pixels, LEFT_SOBEL, duplicate=False)
+topSobel_pixels = applyKernel(luminance_pixels, TOP_SOBEL, duplicate=False)
 #signedimg(leftSobel_pixels).save(f'{name}_leftSobel.png')
 #signedimg(topSobel_pixels).save(f'{name}_topSobel.png')
 
@@ -158,8 +169,8 @@ blurred_luminance_pixels = getpixels(blurred.convert('L'))
 #blurred.save(f'{name}_blurred.png')
 #getimg(blurred_luminance_pixels).save(f'{name}_luminanceBlurred.png')
 
-blurred_leftSobel_pixels = applyKernel(blurred_luminance_pixels, LEFT_SOBEL, scale=1, duplicate=False)
-blurred_topSobel_pixels = applyKernel(blurred_luminance_pixels, TOP_SOBEL, scale=1, duplicate=False)
+blurred_leftSobel_pixels = applyKernel(blurred_luminance_pixels, LEFT_SOBEL, duplicate=False)
+blurred_topSobel_pixels = applyKernel(blurred_luminance_pixels, TOP_SOBEL, duplicate=False)
 #signedimg(blurred_leftSobel_pixels).save(f'{name}_leftSobelBlurred.png')
 #signedimg(blurred_topSobel_pixels).save(f'{name}_topSobelBlurred.png')
 
