@@ -93,13 +93,13 @@ def sobelDirection(leftSobel_pixels, topSobel_pixels, sobel_pixels):
 		'''
 			720:              angleFromCoords(x, y) * 360/pi
 			360 (normal):     angleFromCoords(x, y) * 180/pi
-			360x2 (standard): atan(x, y) * 360/pi
-			180x2:            atan(x, y) * 180/pi
-			180x2-fixed:      atan(x, abs(y)) * 180/pi
+			360x2 (standard): atan(y / x) * 360/pi
+			180x2:            atan(y / x) * 180/pi
+			180x2-fixed:      atan(y / abs(x)) * 180/pi
 		'''
 		#angle = angleFromCoords(leftSobel_pixels[y][x], topSobel_pixels[y][x] or 1e-9)
-		#angle = atan(leftSobel_pixels[y][x] / (topSobel_pixels[y][x] or 1e-9))
-		angle = atan(leftSobel_pixels[y][x] / abs(topSobel_pixels[y][x] or 1e-9))
+		#angle = atan(topSobel_pixels[y][x] / (leftSobel_pixels[y][x] or 1e-9))
+		angle = atan(topSobel_pixels[y][x] / abs(leftSobel_pixels[y][x] or 1e-9))
 		#hue = angle * 360/pi
 		hue = angle * 180/pi
 		value = sobel_pixels[y][x] / 255
